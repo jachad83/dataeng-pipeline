@@ -123,7 +123,7 @@ class DataFrameToSqlDb:
 class JsonToNoSqlDb:
     def __init__(self, data: list | dict):
         """
-        Stores Dataframe in MongoDB DB
+        Stores JSON in MongoDB DB
         
         Parameters
     ----------
