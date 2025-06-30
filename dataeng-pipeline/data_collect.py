@@ -2,6 +2,8 @@ import requests
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.types import Integer
+import pymongo
+import datetime
 
 
 class PesRegionList:
@@ -94,7 +96,7 @@ class JsonToDataFrame:
 
 
 
-class DataFrameToDb:
+class DataFrameToSqlDb:
     def __init__(self, data_frame: pd.DataFrame):
         """
         Stores Dataframe in PostgresSQL DB
@@ -118,16 +120,48 @@ class DataFrameToDb:
             self.df.to_sql(name='pesregion', con=connection, if_exists='replace', index=False, dtype={'pes_id': Integer()})
 
 
-tester = PesRegionList()
-tester_json = tester.get_pes_region_json()
-print(tester_json)
+class JsonToNoSqlDb:
+    def __init__(self, data: list | dict):
+        """
+        Stores Dataframe in MongoDB DB
+        
+        Parameters
+    ----------
+        json_data: dict or list
+            Dict or List representation of JSON
+        """
 
-tester2 = JsonToDataFrame(tester_json)
-tester_dataframe = tester2.get_dataframe()
-print(tester_dataframe)
+        self.json_data = data
 
-tester3 = DataFrameToDb(tester_dataframe)
-tester3.dataframe_to_sql_db()
+
+    def json_to_no_sql_db(self):
+        """
+        Stores JSON to MongoDB collection
+        """
+
+        self.json_data['date'] = datetime.datetime.now(tz=datetime.timezone.utc)
+
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client.dataengpipeline
+        collection = db.pesregion
+        collection.insert_one(self.json_data)
+
+
+
+
+# tester = PesRegionList()
+# tester_json = tester.get_pes_region_json()
+# print(tester_json)
+
+# tester2 = JsonToDataFrame(tester_json)
+# tester_dataframe = tester2.get_dataframe()
+# print(tester_dataframe)
+
+# tester3 = DataFrameToSqlDb(tester_dataframe)
+# tester3.dataframe_to_sql_db()
+
+# tester4 = JsonToNoSqlDb(tester_json)
+# tester4.json_to_no_sql_db()
 
 
 # r = requests.get('https://api.pvlive.uk/pvlive/api/v4/pes/23?start=2025-01-01&end=2025-06-01&extra_fields=installedcapacity_mwp', headers={'Content-Type': 'application/json', 'Accept': 'application/json', 'Accept-Encoding': 'gzip, deflate',})
