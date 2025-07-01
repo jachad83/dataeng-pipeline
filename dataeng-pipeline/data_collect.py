@@ -4,9 +4,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.types import Integer
 import pymongo
 import datetime
+import multiprocessing as mp
+import pprint # TODO: remove post testing
+
 
 
 class PesRegionList:
+    URL = 'https://api.pvlive.uk/pvlive/api/v4/pes_list'
+    
     def __init__(self):
         """
         Initializes JSON PES region list as Dict or List
@@ -25,13 +30,12 @@ class PesRegionList:
             Dict or list representation of JSON
         """
 
-        url = 'https://api.pvlive.uk/pvlive/api/v4/pes_list'
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
             'Accept-Encoding': 'gzip, deflate',
         }
-        response = requests.get(url, headers=headers)
+        response = requests.get(PesRegionList.URL, headers=headers)
 
         return response.json()
 
@@ -139,15 +143,63 @@ class JsonToNoSqlDb:
         Stores JSON to MongoDB collection
         """
 
-        self.json_data['date'] = datetime.datetime.now(tz=datetime.timezone.utc)
+        self.json_data['date_collected'] = datetime.datetime.now(tz=datetime.timezone.utc)
 
         client = pymongo.MongoClient("localhost", 27017)
         db = client.dataengpipeline
-        collection = db.pesregion
+        collection = db.pesregionlist
         collection.insert_one(self.json_data)
 
 
+class PvGeneration:
+    def __init__(self):
+        self.pes_region_id_list = self.get_pes_region_ids()
 
+    def get_pes_region_ids(self):
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client.dataengpipeline
+        collection = db.pesregionlist
+        document = collection.find_one()
+        document_data = document.get('data')
+        pes_region_id_list = list(x[0] for x in document_data if x[0] > 0)
+        
+        return pes_region_id_list
+    
+    def _get_region_pv_data(self, pes_id: int):
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
+        }
+        
+        try:
+            response = requests.get(f'https://api.pvlive.uk/pvlive/api/v4/pes/{pes_id}?start=2025-06-01&end=2025-06-30&extra_fields=installedcapacity_mwp', headers=headers)
+        except Exception as e:
+            return {}
+        
+        if response != None and response.status_code == 200:
+            jsonResponse = response.json()
+            return jsonResponse
+        
+        return {}
+    
+    def pv_data_to_no_sql_db(self):
+        pv_data_list = []
+
+        with mp.Pool(5) as p:
+            pv_data_list.append((p.map(self._get_region_pv_data, self.pes_region_id_list)))
+
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client.dataengpipeline
+        collection = db.ukpvjune
+        collection.insert_many(pv_data_list[0])
+
+
+tester5 = PvGeneration()
+pprint.pprint(tester5.pv_data_to_no_sql_db())
+
+
+# TODO: proper tests!
 
 # tester = PesRegionList()
 # tester_json = tester.get_pes_region_json()
@@ -162,9 +214,3 @@ class JsonToNoSqlDb:
 
 # tester4 = JsonToNoSqlDb(tester_json)
 # tester4.json_to_no_sql_db()
-
-
-# r = requests.get('https://api.pvlive.uk/pvlive/api/v4/pes/23?start=2025-01-01&end=2025-06-01&extra_fields=installedcapacity_mwp', headers={'Content-Type': 'application/json', 'Accept': 'application/json', 'Accept-Encoding': 'gzip, deflate',})
-
-# print('r.text')
-# print(r.json())
