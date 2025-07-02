@@ -29,14 +29,7 @@ TBC
 
 ## Roadmap
 
-- [x] Extract PES region list
-- [x] Transform and store PES region list to database
-    - [x] Store PES region list to MongoDB
-    - [x] Store PES region list to PostgresSQL
-- [x] Extract datetime bounded (June '25) regions PV generation
-- [x] Transform datetime bounded (June '25) regions PV generation
-    - [x] Store PES regions list to MongoDB
-    - [ ] Store PES regions list to PostgresSQL
+- [ ] Unit tests
 
 ## Contact
 

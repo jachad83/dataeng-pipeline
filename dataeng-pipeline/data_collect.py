@@ -1,12 +1,99 @@
 import requests
 import pandas as pd
 from sqlalchemy import create_engine
-from sqlalchemy.types import Integer
+from sqlalchemy.types import Integer, DateTime
 import pymongo
 import datetime
 import multiprocessing as mp
 import pprint # TODO: remove post testing
 
+
+class PvGeneration:
+    def __init__(self):
+        self.pes_region_id_list = self.get_pes_region_ids()
+
+
+    def get_pes_region_ids(self):
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client.dataengpipeline
+        collection = db.pesregionlist
+        document = collection.find_one()
+        document_data = document.get('data')
+        pes_region_id_list = list(x[0] for x in document_data if x[0] > 0)
+        
+        return pes_region_id_list
+    
+    
+    def _get_region_pv_data(self, pes_id: int):
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip, deflate',
+        }
+        
+        try:
+            response = requests.get(f'https://api.pvlive.uk/pvlive/api/v4/pes/{pes_id}?start=2025-06-01&end=2025-06-02&extra_fields=installedcapacity_mwp', headers=headers)
+
+        except Exception as e:
+            print('Error GET region PV data', e)
+            return {}
+        
+        if response != None and response.status_code == 200:
+            jsonResponse = response.json()
+            return jsonResponse
+        
+        return {}
+
+
+    def pv_data_to_no_sql_db(self):
+        pv_data_list = []
+
+        with mp.Pool(5) as p:
+            pv_data_list.append((p.map(self._get_region_pv_data, self.pes_region_id_list)))
+            
+        for doc in pv_data_list[0]:
+            doc['_id'] = doc.get('data')[0][0]
+
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client['dataengpipeline']
+        collection = db['ukpvjune']
+        collection.drop()
+        collection = db['ukpvjune']
+        collection.insert_many(pv_data_list[0])
+
+
+    def pv_no_sql_to_sql_db(self):
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client['dataengpipeline']
+        collection = db['ukpvjune']
+        
+        document = collection.find_one()
+        # df = pd.DataFrame(document.get('data'), columns = ['pes_id', 'datetime', 'gen_mw', 'installed_mwp'])
+        # df = df.drop(['pes_id', 'installed_mwp'], axis=1)
+        # df = pd.DataFrame(df.values[::-1], df.index, df.columns)
+        
+        pprint.pprint(document)
+        engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/dataengpipeline')
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client.dataengpipeline
+        dtype = {
+            "date_time": DateTime
+        }
+        
+        for pes_region in self.pes_region_id_list:
+            
+            collection = db.ukpvjune
+            document = collection.find_one({'_id': pes_region})
+            df = pd.DataFrame(document.get('data'), columns = ['pes_id', 'date_time', 'gen_mw', 'installed_gen_mwp'])
+            df = df.drop(columns=['pes_id', 'installed_gen_mwp'])
+            df = pd.DataFrame(df.values[::-1], df.index, df.columns)
+
+            try:
+                with engine.begin() as connection:
+                    df.to_sql(name=f'gen_pes_region_{pes_region}', con=connection, if_exists='replace', index=False, dtype=dtype)
+
+            except Exception as e:
+                print(f'Error creating table pes ID {pes_region}', e)
 
 
 class PesRegionList:
@@ -53,7 +140,6 @@ class PesRegionList:
         return self.pes_region_json
 
 
-
 class JsonToDataFrame:
     def __init__(self, json_data: list | dict):
         """
@@ -97,7 +183,6 @@ class JsonToDataFrame:
         """
 
         return self.df
-
 
 
 class DataFrameToSqlDb:
@@ -151,54 +236,6 @@ class JsonToNoSqlDb:
         collection.insert_one(self.json_data)
 
 
-class PvGeneration:
-    def __init__(self):
-        self.pes_region_id_list = self.get_pes_region_ids()
-
-    def get_pes_region_ids(self):
-        client = pymongo.MongoClient("localhost", 27017)
-        db = client.dataengpipeline
-        collection = db.pesregionlist
-        document = collection.find_one()
-        document_data = document.get('data')
-        pes_region_id_list = list(x[0] for x in document_data if x[0] > 0)
-        
-        return pes_region_id_list
-    
-    def _get_region_pv_data(self, pes_id: int):
-        headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Accept-Encoding': 'gzip, deflate',
-        }
-        
-        try:
-            response = requests.get(f'https://api.pvlive.uk/pvlive/api/v4/pes/{pes_id}?start=2025-06-01&end=2025-06-30&extra_fields=installedcapacity_mwp', headers=headers)
-        except Exception as e:
-            return {}
-        
-        if response != None and response.status_code == 200:
-            jsonResponse = response.json()
-            return jsonResponse
-        
-        return {}
-    
-    def pv_data_to_no_sql_db(self):
-        pv_data_list = []
-
-        with mp.Pool(5) as p:
-            pv_data_list.append((p.map(self._get_region_pv_data, self.pes_region_id_list)))
-
-        client = pymongo.MongoClient("localhost", 27017)
-        db = client.dataengpipeline
-        collection = db.ukpvjune
-        collection.insert_many(pv_data_list[0])
-
-
-tester5 = PvGeneration()
-pprint.pprint(tester5.pv_data_to_no_sql_db())
-
-
 # TODO: proper tests!
 
 # tester = PesRegionList()
@@ -214,3 +251,7 @@ pprint.pprint(tester5.pv_data_to_no_sql_db())
 
 # tester4 = JsonToNoSqlDb(tester_json)
 # tester4.json_to_no_sql_db()
+
+# tester5 = PvGeneration()
+# tester5.pv_data_to_no_sql_db()
+# tester5.pv_no_sql_to_sql_db()
