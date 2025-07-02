@@ -66,23 +66,15 @@ class PvGeneration:
         client = pymongo.MongoClient("localhost", 27017)
         db = client['dataengpipeline']
         collection = db['ukpvjune']
-        
-        document = collection.find_one()
-        # df = pd.DataFrame(document.get('data'), columns = ['pes_id', 'datetime', 'gen_mw', 'installed_mwp'])
-        # df = df.drop(['pes_id', 'installed_mwp'], axis=1)
-        # df = pd.DataFrame(df.values[::-1], df.index, df.columns)
-        
-        pprint.pprint(document)
-        engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/dataengpipeline')
-        client = pymongo.MongoClient("localhost", 27017)
-        db = client.dataengpipeline
         dtype = {
             "date_time": DateTime
         }
         
+        engine = create_engine('postgresql+psycopg2://postgres:postgres@localhost:5432/dataengpipeline')
+        client = pymongo.MongoClient("localhost", 27017)
+        db = client['dataengpipeline']
+        
         for pes_region in self.pes_region_id_list:
-            
-            collection = db.ukpvjune
             document = collection.find_one({'_id': pes_region})
             df = pd.DataFrame(document.get('data'), columns = ['pes_id', 'date_time', 'gen_mw', 'installed_gen_mwp'])
             df = df.drop(columns=['pes_id', 'installed_gen_mwp'])
