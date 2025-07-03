@@ -1,6 +1,6 @@
 ## About The Project
 
-Python module to extract and transform pipeline of UK PV generation data extracted from the PV_Live API provided by the University of Sheffield Sheffield Solar project.
+Python module to extract, transform and store UK PV generation data extracted from the PV_Live API provided by the University of Sheffield Sheffield Solar project.
 
 PV_Live API - https://www.solar.sheffield.ac.uk/api/ - https://github.com/SheffieldSolar/PV_Live-API
 
