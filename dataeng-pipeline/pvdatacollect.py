@@ -8,7 +8,7 @@ import multiprocessing as mp
 import pprint # TODO: remove post testing
 
 
-class PvGeneration:
+class PvGenerationData:
     """
     Extracts UK PV generation data from Sheffield Sheffield Solar project PV_Live API.
     
@@ -140,7 +140,14 @@ class PvGeneration:
                 print(f'Error creating table pes ID {pes_region} for date {self.start_date} to {self.end_date}', e)
 
 
-# TODO: refactor all classes below 
+if __name__ == "__main__":
+    import sys
+    pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
+    pv_gen_obj.pv_data_to_no_sql_db()
+    pv_gen_obj.pv_no_sql_to_sql_db()
+
+
+# TODO: refactor all classes below; they will be helper Classes or functions for the main PvGenerationData class
 class PesRegionList:
     URL = 'https://api.pvlive.uk/pvlive/api/v4/pes_list'
     
