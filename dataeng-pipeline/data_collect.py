@@ -9,12 +9,43 @@ import pprint # TODO: remove post testing
 
 
 class PvGeneration:
-    def __init__(self):
+    """
+    Extracts UK PV generation data from Sheffield Sheffield Solar project PV_Live API.
+    
+    Parameters
+    ----------
+    start_date : str
+        Start date of PV generation period data in format YYYY-MM-DD.
+        Default: 2025-06-01
+    end_date : str
+        End date of PV generation period data in format YYYY-MM-DD.
+        Default: 2025-06-02
+    
+    Attributes
+    ----------
+    mongo_collection : str
+        PV extraction data mongoDB collection name.
+    pes_region_id_list : list
+        List of UK PES region IDs.
+    """
+        
+    def __init__(self, start_date: str = '2025-06-01', end_date: str = '2025-06-02'):
+        self.start_date = start_date
+        self.end_date = end_date
+        self.mongo_collection = f'pv_{start_date}_{end_date}'
         self.pes_region_id_list = self.get_pes_region_ids()
 
 
     def get_pes_region_ids(self):
-        client = pymongo.MongoClient("localhost", 27017)
+        """
+        Gets list of UK PES region IDs.
+        
+        Returns
+        -------
+        List of UK PES region IDs.
+        """
+        
+        client = pymongo.MongoClient('localhost', 27017)
         db = client.dataengpipeline
         collection = db.pesregionlist
         document = collection.find_one()
@@ -25,6 +56,19 @@ class PvGeneration:
     
     
     def _get_region_pv_data(self, pes_id: int):
+        """
+        API call to PV_Live API getting PV generation data of a UK PES region.
+        
+        Parameters
+        ----------
+        pes_id : int
+            PES region ID.
+        
+        Returns
+        -------
+        Dict representation of PV generation data of a UK PES region.
+        """
+        
         headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -32,7 +76,7 @@ class PvGeneration:
         }
         
         try:
-            response = requests.get(f'https://api.pvlive.uk/pvlive/api/v4/pes/{pes_id}?start=2025-06-01&end=2025-06-02&extra_fields=installedcapacity_mwp', headers=headers)
+            response = requests.get(f'https://api.pvlive.uk/pvlive/api/v4/pes/{pes_id}?start={self.start_date}&end={self.end_date}&extra_fields=installedcapacity_mwp', headers=headers)
 
         except Exception as e:
             print('Error GET region PV data', e)
@@ -46,6 +90,10 @@ class PvGeneration:
 
 
     def pv_data_to_no_sql_db(self):
+        """
+        Gets PV generation data of UK PES regions and sets to mongoDB collections.
+        """
+        
         pv_data_list = []
 
         with mp.Pool(5) as p:
@@ -56,16 +104,20 @@ class PvGeneration:
 
         client = pymongo.MongoClient("localhost", 27017)
         db = client['dataengpipeline']
-        collection = db['ukpvjune']
+        collection = db[self.mongo_collection]
         collection.drop()
-        collection = db['ukpvjune']
+        collection = db[self.mongo_collection]
         collection.insert_many(pv_data_list[0])
 
 
     def pv_no_sql_to_sql_db(self):
+        """
+        Transforms PV generation data of UK PES regions from mongoDB collections to PostgresSQL tables.
+        """
+        
         client = pymongo.MongoClient("localhost", 27017)
         db = client['dataengpipeline']
-        collection = db['ukpvjune']
+        collection = db[self.mongo_collection]
         dtype = {
             "date_time": DateTime
         }
@@ -82,12 +134,13 @@ class PvGeneration:
 
             try:
                 with engine.begin() as connection:
-                    df.to_sql(name=f'gen_pes_region_{pes_region}', con=connection, if_exists='replace', index=False, dtype=dtype)
+                    df.to_sql(name=f'gen_pes_region_{pes_region}_{self.start_date}_{self.end_date}', con=connection, if_exists='replace', index=False, dtype=dtype)
 
             except Exception as e:
-                print(f'Error creating table pes ID {pes_region}', e)
+                print(f'Error creating table pes ID {pes_region} for date {self.start_date} to {self.end_date}', e)
 
 
+# TODO: refactor all classes below 
 class PesRegionList:
     URL = 'https://api.pvlive.uk/pvlive/api/v4/pes_list'
     
@@ -148,7 +201,7 @@ class JsonToDataFrame:
 
     def _set_json_to_dataframe(self, data: list | dict):
         """
-        SET Dataframe
+        SET JSOM to Dataframe
         
         Parameters
     ----------
