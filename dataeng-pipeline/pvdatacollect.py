@@ -32,7 +32,7 @@ class PvGenerationData:
     def __init__(self, start_date: str = '2025-06-01', end_date: str = '2025-06-02'):
         self.start_date = start_date
         self.end_date = end_date
-        self.mongo_collection = f'pv_{start_date}_{end_date}'
+        self.mongo_collection = f'pv_{start_date}_{end_date}'.replace("-", "_")
         self.pes_region_id_list = self.get_pes_region_ids()
 
 
@@ -108,11 +108,13 @@ class PvGenerationData:
         collection.drop()
         collection = db[self.mongo_collection]
         collection.insert_many(pv_data_list[0])
+        
+        return True # TODO: appropriate return i.e. True if no errors encountered, false gives error message
 
 
     def pv_no_sql_to_sql_db(self):
         """
-        Transforms PV generation data of UK PES regions from mongoDB collections to PostgresSQL tables.
+        Transforms PV generation data of UK PES regions from mongoDB collection to PostgresSQL table.
         """
         
         client = pymongo.MongoClient("localhost", 27017)
@@ -126,21 +128,34 @@ class PvGenerationData:
         client = pymongo.MongoClient("localhost", 27017)
         db = client['dataengpipeline']
         
+        parsed_data = {}
+        
         for pes_region in self.pes_region_id_list:
             document = collection.find_one({'_id': pes_region})
-            df = pd.DataFrame(document.get('data'), columns = ['pes_id', 'date_time', 'gen_mw', 'installed_gen_mwp'])
-            df = df.drop(columns=['pes_id', 'installed_gen_mwp'])
-            df = pd.DataFrame(df.values[::-1], df.index, df.columns)
+            document_data = document.get('data')
+            parsed_data[pes_region] = []
+            
+            for item in document_data:
+                parsed_data[pes_region].append(item[2])
+        
+        
+        df = pd.DataFrame.from_dict(parsed_data)
+        df = pd.DataFrame(df.values[::-1], df.index, df.columns)
 
-            try:
-                with engine.begin() as connection:
-                    df.to_sql(name=f'gen_pes_region_{pes_region}_{self.start_date}_{self.end_date}', con=connection, if_exists='replace', index=False, dtype=dtype)
+        try:
+            with engine.begin() as connection:
+                df.to_sql(name=f'pv_{self.start_date}_{self.end_date}', con=connection, if_exists='replace', index=False, dtype=dtype)
 
-            except Exception as e:
-                print(f'Error creating table pes ID {pes_region} for date {self.start_date} to {self.end_date}', e)
+        except Exception as e:
+            print(f'Error creating table for date {self.start_date} to {self.end_date}', e)
+
+        return True # TODO: appropriate return i.e. True if no errors encountered, false gives error message
 
 
 if __name__ == "__main__":
+    # tester5 = PvGenerationData('2025-06-15', '2025-06-16')
+    # tester5.pv_data_to_no_sql_db()
+    # tester5.pv_no_sql_to_sql_db()
     import sys
     pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
     pv_gen_obj.pv_data_to_no_sql_db()
@@ -304,6 +319,6 @@ class JsonToNoSqlDb:
 # tester4 = JsonToNoSqlDb(tester_json)
 # tester4.json_to_no_sql_db()
 
-# tester5 = PvGeneration()
+# tester5 = PvGenerationData('2025_06_15', '2025_06_16')
 # tester5.pv_data_to_no_sql_db()
 # tester5.pv_no_sql_to_sql_db()
