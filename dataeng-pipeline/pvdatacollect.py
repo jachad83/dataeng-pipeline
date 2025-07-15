@@ -293,32 +293,35 @@ class JsonToNoSqlDb:
 
 
 if __name__ == "__main__":
-    # get PES region list as JSON
-    pes_region_obj = PesRegionList()
-    pes_json = pes_region_obj.get_pes_region_json()
+    import sys
+    pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
+    pv_gen_obj.pv_data_to_no_sql_db()
+    pv_gen_obj.pv_no_sql_to_sql_db()
 
-    # set PES region list to a DataFrame
-    pes_dataframe_obj = JsonToDataFrame(pes_json)
-    pes_dataframe = pes_dataframe_obj.get_dataframe()
+    # # Uncomment below to run the scripts from the file directly
+    # # get PES region list as JSON
+    # pes_region_obj = PesRegionList()
+    # pes_json = pes_region_obj.get_pes_region_json()
 
-    # store PES region list DataFrame to SQL DB
-    pes_sql_obj = DataFrameToSqlDb(pes_dataframe)
-    pes_sql_obj.dataframe_to_sql_db()
+    # # set PES region list to a DataFrame
+    # pes_dataframe_obj = JsonToDataFrame(pes_json)
+    # pes_dataframe = pes_dataframe_obj.get_dataframe()
 
-    # store PES region list json to NoSQL DB
-    pes_nosql_obj = JsonToNoSqlDb(pes_json)
-    pes_nosql_obj.json_to_no_sql_db()
+    # # store PES region list DataFrame to SQL DB
+    # pes_sql_obj = DataFrameToSqlDb(pes_dataframe)
+    # pes_sql_obj.dataframe_to_sql_db()
 
+    # # store PES region list json to NoSQL DB
+    # pes_nosql_obj = JsonToNoSqlDb(pes_json)
+    # pes_nosql_obj.json_to_no_sql_db()
+
+    # # get, transform and store PV generation data to NoSQL and SQL DB
     # pv_data = PvGenerationData('2025-06-15', '2025-06-16')
     # pv_data.pv_data_to_no_sql_db()
     # pv_data.pv_no_sql_to_sql_db()
-    # import sys
-    # pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
-    # pv_gen_obj.pv_data_to_no_sql_db()
-    # pv_gen_obj.pv_no_sql_to_sql_db()
 
-    # TODO: proper tests!
 
+# TODO: proper tests!
 
 # tester = PesRegionList()
 # tester_json = tester.get_pes_region_json()
