@@ -24,6 +24,7 @@ Import as a module or run as a script.
 * requests
 * pandas
 * sqlalchemy
+* psycopg2
 * pymongo
 * datetime
 * multiprocessing

@@ -151,16 +151,6 @@ class PvGenerationData:
         return True # TODO: appropriate return i.e. True if no errors encountered, false gives error message
 
 
-if __name__ == "__main__":
-    # tester5 = PvGenerationData('2025-06-15', '2025-06-16')
-    # tester5.pv_data_to_no_sql_db()
-    # tester5.pv_no_sql_to_sql_db()
-    import sys
-    pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
-    pv_gen_obj.pv_data_to_no_sql_db()
-    pv_gen_obj.pv_no_sql_to_sql_db()
-
-
 # TODO: refactor all classes below; they will be helper Classes or functions for the main PvGenerationData class
 class PesRegionList:
     URL = 'https://api.pvlive.uk/pvlive/api/v4/pes_list'
@@ -302,7 +292,33 @@ class JsonToNoSqlDb:
         collection.insert_one(self.json_data)
 
 
-# TODO: proper tests!
+if __name__ == "__main__":
+    # get PES region list as JSON
+    pes_region_obj = PesRegionList()
+    pes_json = pes_region_obj.get_pes_region_json()
+
+    # set PES region list to a DataFrame
+    pes_dataframe_obj = JsonToDataFrame(pes_json)
+    pes_dataframe = pes_dataframe_obj.get_dataframe()
+
+    # store PES region list DataFrame to SQL DB
+    pes_sql_obj = DataFrameToSqlDb(pes_dataframe)
+    pes_sql_obj.dataframe_to_sql_db()
+
+    # store PES region list json to NoSQL DB
+    pes_nosql_obj = JsonToNoSqlDb(pes_json)
+    pes_nosql_obj.json_to_no_sql_db()
+
+    # pv_data = PvGenerationData('2025-06-15', '2025-06-16')
+    # pv_data.pv_data_to_no_sql_db()
+    # pv_data.pv_no_sql_to_sql_db()
+    # import sys
+    # pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
+    # pv_gen_obj.pv_data_to_no_sql_db()
+    # pv_gen_obj.pv_no_sql_to_sql_db()
+
+    # TODO: proper tests!
+
 
 # tester = PesRegionList()
 # tester_json = tester.get_pes_region_json()
