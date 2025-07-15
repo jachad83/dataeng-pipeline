@@ -143,7 +143,7 @@ class PvGenerationData:
 
         try:
             with engine.begin() as connection:
-                df.to_sql(name=f'pv_{self.start_date}_{self.end_date}', con=connection, if_exists='replace', index=False, dtype=dtype)
+                df.to_sql(name=f'pv_{self.start_date.replace("-", "_")}_{self.end_date.replace("-", "_")}', con=connection, if_exists='replace', index=False, dtype=dtype)
 
         except Exception as e:
             print(f'Error creating table for date {self.start_date} to {self.end_date}', e)
@@ -293,10 +293,10 @@ class JsonToNoSqlDb:
 
 
 if __name__ == "__main__":
-    import sys
-    pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
-    pv_gen_obj.pv_data_to_no_sql_db()
-    pv_gen_obj.pv_no_sql_to_sql_db()
+    # import sys
+    # pv_gen_obj = PvGenerationData(str(sys.argv[1]), str(sys.argv[2]))
+    # pv_gen_obj.pv_data_to_no_sql_db()
+    # pv_gen_obj.pv_no_sql_to_sql_db()
 
     # # Uncomment below to run the scripts from the file directly
     # # get PES region list as JSON
@@ -316,9 +316,9 @@ if __name__ == "__main__":
     # pes_nosql_obj.json_to_no_sql_db()
 
     # # get, transform and store PV generation data to NoSQL and SQL DB
-    # pv_data = PvGenerationData('2025-06-15', '2025-06-16')
-    # pv_data.pv_data_to_no_sql_db()
-    # pv_data.pv_no_sql_to_sql_db()
+    pv_data = PvGenerationData('2025-06-15', '2025-06-16')
+    pv_data.pv_data_to_no_sql_db()
+    pv_data.pv_no_sql_to_sql_db()
 
 
 # TODO: proper tests!
